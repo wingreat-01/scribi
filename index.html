@@ -231,7 +231,7 @@
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qcmh4dGhzd3NuY2R2bnVqdXhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1MTE5NzcsImV4cCI6MjEwNTA4Nzk3N30.LN-OEhv-sO-20_dbNCI9wpVwusWJufNzmaIvcueMy_4';
   // ------------------------------
 
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const gate = document.getElementById('gate');
   const app = document.getElementById('app');
@@ -263,7 +263,7 @@
     gateError.textContent = '';
     if (!code) return;
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('rooms')
       .select('*')
       .eq('code', code)
@@ -293,7 +293,7 @@
   }
 
   async function loadScreenshots(roomId) {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('screenshots')
       .select('*')
       .eq('room_id', roomId)
@@ -308,7 +308,7 @@
   }
 
   function subscribeToRoom(roomId) {
-    supabase
+    supabaseClient
       .channel('screenshots-' + roomId)
       .on(
         'postgres_changes',
