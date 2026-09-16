@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ScreenBridge</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #16171b;
+    --surface: #1e2025;
+    --border: #2c2e35;
+    --text: #e7e6e2;
+    --text-dim: #8b8d96;
+    --accent: #5b9df9;
+    --accent-dim: #2d3f5c;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .brand h1 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .room-tag {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  #disconnect {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #disconnect:hover { color: var(--text); border-color: var(--text-dim); }
+
+  main { padding: 32px; max-width: 1100px; margin: 0 auto; }
+
+  .empty {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 100px 20px;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .card img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    display: block;
+    cursor: pointer;
+    background: #0d0e11;
+  }
+
+  .card-body {
+    padding: 10px 12px;
+  }
+
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    font-family: var(--mono);
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .actions button {
+    flex: 1;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: none;
+    padding: 7px 0;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .actions button:hover { filter: brightness(1.2); }
+  .actions button.copied { background: #2d5c3f; color: #7fe0a0; }
+
+  /* Onboarding */
+  .gate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .gate-box {
+    width: 100%;
+    max-width: 340px;
+    text-align: center;
+  }
+
+  .gate-box h1 {
+    font-size: 19px;
+    margin-bottom: 6px;
+  }
+
+  .gate-box p {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .gate-box input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 16px;
+    letter-spacing: 0.05em;
+    text-align: center;
+    text-transform: uppercase;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+  }
+  .gate-box input:focus { outline: none; border-color: var(--accent); }
+
+  .gate-box button {
+    width: 100%;
+    background: var(--accent);
+    color: #0d1117;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .gate-error {
+    color: #f28b82;
+    font-size: 13px;
+    margin-top: 10px;
+    min-height: 16px;
+  }
+</style>
+</head>
+<body>
+
+<div id="gate" class="gate" style="display:none;">
+  <div class="gate-box">
+    <h1>Connect to your room</h1>
+    <p>Enter the room code shown in the mobile app's onboarding or Settings screen.</p>
+    <input id="code-input" maxlength="6" placeholder="ZX7K9P" autocomplete="off" />
+    <button id="connect-btn">Connect</button>
+    <div class="gate-error" id="gate-error"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+  <header>
+    <div class="brand">
+      <h1>ScreenBridge</h1>
+      <span class="room-tag" id="room-tag"></span>
+    </div>
+    <button id="disconnect">Disconnect</button>
+  </header>
+  <main>
+    <div id="empty" class="empty" style="display:none;">
+      No screenshots yet.<br/>Share one from your phone to see it appear here.
+    </div>
+    <div class="grid" id="grid"></div>
+  </main>
+</div>
+
+<script>
+  // ---- Fill in from Step 1 ----
+  const SUPABASE_URL = 'https://mjrhxthswsncdvnujuxb.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qcmh4dGhzd3NuY2R2bnVqdXhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1MTE5NzcsImV4cCI6MjEwNTA4Nzk3N30.LN-OEhv-sO-20_dbNCI9wpVwusWJufNzmaIvcueMy_4';
+  // ------------------------------
+
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const gate = document.getElementById('gate');
+  const app = document.getElementById('app');
+  const grid = document.getElementById('grid');
+  const emptyState = document.getElementById('empty');
+  const roomTag = document.getElementById('room-tag');
+  const codeInput = document.getElementById('code-input');
+  const connectBtn = document.getElementById('connect-btn');
+  const gateError = document.getElementById('gate-error');
+  const disconnectBtn = document.getElementById('disconnect');
+
+  const STORAGE_KEY = 'screenbridge_room';
+
+  async function init() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const room = JSON.parse(saved);
+      await enterRoom(room);
+    } else {
+      gate.style.display = 'flex';
+    }
+  }
+
+  connectBtn.addEventListener('click', connect);
+  codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
+
+  async function connect() {
+    const code = codeInput.value.trim().toUpperCase();
+    gateError.textContent = '';
+    if (!code) return;
+
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('code', code)
+      .single();
+
+    if (error || !data) {
+      gateError.textContent = 'Room code not found. Check and try again.';
+      return;
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    await enterRoom(data);
+  }
+
+  disconnectBtn.addEventListener('click', () => {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  });
+
+  async function enterRoom(room) {
+    gate.style.display = 'none';
+    app.style.display = 'block';
+    roomTag.textContent = room.mode === 'team' ? `Team · ${room.code}` : 'Personal';
+
+    await loadScreenshots(room.id);
+    subscribeToRoom(room.id);
+  }
+
+  async function loadScreenshots(roomId) {
+    const { data, error } = await supabase
+      .from('screenshots')
+      .select('*')
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+    renderAll(data);
+  }
+
+  function subscribeToRoom(roomId) {
+    supabase
+      .channel('screenshots-' + roomId)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'screenshots', filter: `room_id=eq.${roomId}` },
+        (payload) => prependCard(payload.new)
+      )
+      .subscribe();
+  }
+
+  function renderAll(rows) {
+    grid.innerHTML = '';
+    emptyState.style.display = rows.length ? 'none' : 'block';
+    rows.forEach((row) => grid.appendChild(buildCard(row)));
+  }
+
+  function prependCard(row) {
+    emptyState.style.display = 'none';
+    grid.prepend(buildCard(row));
+  }
+
+  function buildCard(row) {
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const img = document.createElement('img');
+    img.src = row.image_url;
+    img.loading = 'lazy';
+    img.addEventListener('click', () => window.open(row.image_url, '_blank'));
+
+    const body = document.createElement('div');
+    body.className = 'card-body';
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const time = new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    meta.innerHTML = `<span>${row.uploader_name ? escapeHtml(row.uploader_name) : time}</span><span>${row.uploader_name ? time : ''}</span>`;
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = 'Copy';
+    copyBtn.addEventListener('click', () => copyImage(row.image_url, copyBtn));
+
+    const downloadBtn = document.createElement('button');
+    downloadBtn.textContent = 'Download';
+    downloadBtn.addEventListener('click', () => downloadImage(row.image_url));
+
+    actions.append(copyBtn, downloadBtn);
+    body.append(meta, actions);
+    card.append(img, body);
+    return card;
+  }
+
+  async function copyImage(url, btn) {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({ [blob.type]: blob }),
+      ]);
+      const original = btn.textContent;
+      btn.textContent = 'Copied';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1500);
+    } catch (e) {
+      console.error('Copy failed', e);
+      alert('Could not copy image — your browser may not support clipboard image writes over this connection.');
+    }
+  }
+
+  function downloadImage(url) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '';
+    a.target = '_blank';
+    a.click();
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  init();
+</script>
+</body>
+</html>
