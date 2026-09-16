@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>ScreenBridge</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root {
     --bg: #16171b;
@@ -71,7 +71,7 @@
   .gate-error { color: #f28b82; font-size: 13px; margin-top: 10px; min-height: 16px; }
 
   .created-panel { text-align: center; }
-  #qr-canvas { background: #fff; padding: 12px; border-radius: 10px; margin: 16px 0; }
+  #qr-canvas { background: #fff; padding: 12px; border-radius: 10px; margin: 16px auto; display: inline-block; }
   .big-code { font-family: var(--mono); font-size: 28px; letter-spacing: 0.1em; font-weight: 700; margin: 8px 0; }
 </style>
 </head>
@@ -96,7 +96,7 @@
   <div class="gate-box created-panel" id="gate-created" style="display:none;">
     <h1>Room created</h1>
     <p>Scan this on your phone, or enter the code manually.</p>
-    <canvas id="qr-canvas"></canvas>
+    <div id="qr-canvas"></div>
     <div class="big-code" id="created-code"></div>
     <button class="primary" id="continue-btn" style="margin-top:16px;">Continue to Room</button>
   </div>
@@ -186,7 +186,17 @@
     gateChoice.style.display = 'none';
     gateCreated.style.display = 'block';
     document.getElementById('created-code').textContent = data.code;
-    QRCode.toCanvas(document.getElementById('qr-canvas'), data.code, { width: 220 });
+    try {
+      document.getElementById('qr-canvas').innerHTML = '';
+      new QRCode(document.getElementById('qr-canvas'), {
+        text: data.code,
+        width: 220,
+        height: 220,
+      });
+    } catch (e) {
+      console.error('QR generation failed', e);
+      // Code is still shown in big text above/below regardless — not a hard failure.
+    }
 
     document.getElementById('continue-btn').addEventListener('click', () => enterRoom(data));
   }
