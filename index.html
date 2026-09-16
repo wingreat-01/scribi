@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>ScreenBridge</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
   :root {
     --bg: #16171b;
@@ -14,198 +15,90 @@
     --text-dim: #8b8d96;
     --accent: #5b9df9;
     --accent-dim: #2d3f5c;
+    --danger: #e5615a;
+    --danger-dim: #4a2626;
     --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
     --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
   }
-
   * { box-sizing: border-box; }
-
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    min-height: 100vh;
-  }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
 
   header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 32px;
-    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 32px; border-bottom: 1px solid var(--border);
   }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand h1 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  .room-tag { font-family: var(--mono); font-size: 13px; color: var(--text-dim); background: var(--surface); border: 1px solid var(--border); padding: 3px 8px; border-radius: 4px; }
+  .timer { font-family: var(--mono); font-size: 13px; color: var(--accent); }
+  .timer.low { color: var(--danger); }
 
-  .brand {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-  }
-
-  .brand h1 {
-    font-size: 17px;
-    font-weight: 600;
-    margin: 0;
-    letter-spacing: -0.01em;
-  }
-
-  .room-tag {
-    font-family: var(--mono);
-    font-size: 13px;
-    color: var(--text-dim);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    padding: 3px 8px;
-    border-radius: 4px;
-  }
-
-  #disconnect {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    font-size: 13px;
-    padding: 6px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-  #disconnect:hover { color: var(--text); border-color: var(--text-dim); }
+  #leave-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); font-size: 13px; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+  #leave-btn:hover { color: var(--text); border-color: var(--text-dim); }
 
   main { padding: 32px; max-width: 1100px; margin: 0 auto; }
-
-  .empty {
-    text-align: center;
-    color: var(--text-dim);
-    padding: 100px 20px;
-    font-size: 15px;
-    line-height: 1.6;
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 18px;
-  }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-
-  .card img {
-    width: 100%;
-    height: 150px;
-    object-fit: cover;
-    display: block;
-    cursor: pointer;
-    background: #0d0e11;
-  }
-
-  .card-body {
-    padding: 10px 12px;
-  }
-
-  .meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    color: var(--text-dim);
-    margin-bottom: 8px;
-    font-family: var(--mono);
-  }
-
-  .actions {
-    display: flex;
-    gap: 8px;
-  }
-
-  .actions button {
-    flex: 1;
-    background: var(--accent-dim);
-    color: var(--accent);
-    border: none;
-    padding: 7px 0;
-    border-radius: 6px;
-    font-size: 13px;
-    cursor: pointer;
-    font-weight: 500;
-  }
+  .empty { text-align: center; color: var(--text-dim); padding: 100px 20px; font-size: 15px; line-height: 1.6; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .card img { width: 100%; height: 150px; object-fit: cover; display: block; cursor: pointer; background: #0d0e11; }
+  .card-body { padding: 10px 12px; }
+  .meta { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; font-family: var(--mono); }
+  .actions { display: flex; gap: 6px; }
+  .actions button { flex: 1; background: var(--accent-dim); color: var(--accent); border: none; padding: 7px 0; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 500; }
   .actions button:hover { filter: brightness(1.2); }
   .actions button.copied { background: #2d5c3f; color: #7fe0a0; }
+  .actions button.danger { background: var(--danger-dim); color: var(--danger); }
 
-  /* Onboarding */
-  .gate {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    padding: 20px;
-  }
-
-  .gate-box {
-    width: 100%;
-    max-width: 340px;
-    text-align: center;
-  }
-
-  .gate-box h1 {
-    font-size: 19px;
-    margin-bottom: 6px;
-  }
-
-  .gate-box p {
-    color: var(--text-dim);
-    font-size: 14px;
-    margin-bottom: 24px;
-  }
-
+  .gate { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+  .gate-box { width: 100%; max-width: 360px; text-align: center; }
+  .gate-box h1 { font-size: 19px; margin-bottom: 6px; }
+  .gate-box p { color: var(--text-dim); font-size: 14px; margin-bottom: 24px; }
   .gate-box input {
-    width: 100%;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 16px;
-    letter-spacing: 0.05em;
-    text-align: center;
-    text-transform: uppercase;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 14px;
+    width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    font-family: var(--mono); font-size: 16px; letter-spacing: 0.05em; text-align: center; text-transform: uppercase;
+    padding: 12px; border-radius: 8px; margin-bottom: 14px;
   }
   .gate-box input:focus { outline: none; border-color: var(--accent); }
-
-  .gate-box button {
-    width: 100%;
-    background: var(--accent);
-    color: #0d1117;
-    border: none;
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
+  .gate-box button.primary {
+    width: 100%; background: var(--accent); color: #0d1117; border: none; padding: 12px;
+    border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 10px;
   }
-
-  .gate-error {
-    color: #f28b82;
-    font-size: 13px;
-    margin-top: 10px;
-    min-height: 16px;
+  .gate-box button.secondary {
+    width: 100%; background: none; color: var(--text-dim); border: 1px solid var(--border); padding: 12px;
+    border-radius: 8px; font-size: 14px; cursor: pointer;
   }
+  .divider { color: var(--text-dim); font-size: 12px; margin: 18px 0; }
+  .gate-error { color: #f28b82; font-size: 13px; margin-top: 10px; min-height: 16px; }
+
+  .created-panel { text-align: center; }
+  #qr-canvas { background: #fff; padding: 12px; border-radius: 10px; margin: 16px 0; }
+  .big-code { font-family: var(--mono); font-size: 28px; letter-spacing: 0.1em; font-weight: 700; margin: 8px 0; }
 </style>
 </head>
 <body>
 
 <div id="gate" class="gate" style="display:none;">
-  <div class="gate-box">
-    <h1>Connect to your room</h1>
-    <p>Enter the room code shown in the mobile app's onboarding or Settings screen.</p>
+  <div class="gate-box" id="gate-choice">
+    <h1>ScreenBridge</h1>
+    <p>Create a new room to start receiving screenshots, or join one already created.</p>
+    <button class="primary" id="create-btn">Create New Room</button>
+    <button class="secondary" id="show-join-btn">Join Existing Room</button>
+  </div>
+
+  <div class="gate-box" id="gate-join" style="display:none;">
+    <h1>Join a Room</h1>
+    <p>Enter the room code from your other device.</p>
     <input id="code-input" maxlength="6" placeholder="ZX7K9P" autocomplete="off" />
-    <button id="connect-btn">Connect</button>
+    <button class="primary" id="join-btn">Join</button>
     <div class="gate-error" id="gate-error"></div>
+  </div>
+
+  <div class="gate-box created-panel" id="gate-created" style="display:none;">
+    <h1>Room created</h1>
+    <p>Scan this on your phone, or enter the code manually.</p>
+    <canvas id="qr-canvas"></canvas>
+    <div class="big-code" id="created-code"></div>
+    <button class="primary" id="continue-btn" style="margin-top:16px;">Continue to Room</button>
   </div>
 </div>
 
@@ -214,8 +107,9 @@
     <div class="brand">
       <h1>ScreenBridge</h1>
       <span class="room-tag" id="room-tag"></span>
+      <span class="timer" id="timer"></span>
     </div>
-    <button id="disconnect">Disconnect</button>
+    <button id="leave-btn">Leave Room</button>
   </header>
   <main>
     <div id="empty" class="empty" style="display:none;">
@@ -226,39 +120,78 @@
 </div>
 
 <script>
-  // ---- Fill in from Step 1 ----
   const SUPABASE_URL = 'https://mjrhxthswsncdvnujuxb.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qcmh4dGhzd3NuY2R2bnVqdXhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1MTE5NzcsImV4cCI6MjEwNTA4Nzk3N30.LN-OEhv-sO-20_dbNCI9wpVwusWJufNzmaIvcueMy_4';
-  // ------------------------------
 
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const gate = document.getElementById('gate');
+  const gateChoice = document.getElementById('gate-choice');
+  const gateJoin = document.getElementById('gate-join');
+  const gateCreated = document.getElementById('gate-created');
   const app = document.getElementById('app');
   const grid = document.getElementById('grid');
   const emptyState = document.getElementById('empty');
   const roomTag = document.getElementById('room-tag');
+  const timerEl = document.getElementById('timer');
   const codeInput = document.getElementById('code-input');
-  const connectBtn = document.getElementById('connect-btn');
   const gateError = document.getElementById('gate-error');
-  const disconnectBtn = document.getElementById('disconnect');
 
   const STORAGE_KEY = 'screenbridge_room';
+  let expiryInterval = null;
+
+  document.getElementById('create-btn').addEventListener('click', createRoom);
+  document.getElementById('show-join-btn').addEventListener('click', () => {
+    gateChoice.style.display = 'none';
+    gateJoin.style.display = 'block';
+  });
+  document.getElementById('join-btn').addEventListener('click', joinRoom);
+  codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom(); });
+  document.getElementById('leave-btn').addEventListener('click', () => {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  });
 
   async function init() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const room = JSON.parse(saved);
-      await enterRoom(room);
-    } else {
-      gate.style.display = 'flex';
+      if (new Date(room.expires_at) > new Date()) {
+        await enterRoom(room);
+        return;
+      }
+      localStorage.removeItem(STORAGE_KEY);
     }
+    gate.style.display = 'flex';
   }
 
-  connectBtn.addEventListener('click', connect);
-  codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
+  async function createRoom() {
+    const code = generateCode();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
 
-  async function connect() {
+    const { data, error } = await supabaseClient
+      .from('rooms')
+      .insert({ code, expires_at: expiresAt })
+      .select()
+      .single();
+
+    if (error) {
+      alert('Could not create room. Check your Supabase setup.');
+      console.error(error);
+      return;
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+    gateChoice.style.display = 'none';
+    gateCreated.style.display = 'block';
+    document.getElementById('created-code').textContent = data.code;
+    QRCode.toCanvas(document.getElementById('qr-canvas'), data.code, { width: 220 });
+
+    document.getElementById('continue-btn').addEventListener('click', () => enterRoom(data));
+  }
+
+  async function joinRoom() {
     const code = codeInput.value.trim().toUpperCase();
     gateError.textContent = '';
     if (!code) return;
@@ -267,10 +200,14 @@
       .from('rooms')
       .select('*')
       .eq('code', code)
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
-      gateError.textContent = 'Room code not found. Check and try again.';
+      gateError.textContent = 'Room code not found.';
+      return;
+    }
+    if (new Date(data.expires_at) < new Date()) {
+      gateError.textContent = 'This room has expired.';
       return;
     }
 
@@ -278,18 +215,43 @@
     await enterRoom(data);
   }
 
-  disconnectBtn.addEventListener('click', () => {
-    localStorage.removeItem(STORAGE_KEY);
-    location.reload();
-  });
+  function generateCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+  }
 
   async function enterRoom(room) {
     gate.style.display = 'none';
     app.style.display = 'block';
-    roomTag.textContent = room.mode === 'team' ? `Team · ${room.code}` : 'Personal';
+    roomTag.textContent = room.code;
 
+    startExpiryCountdown(room.expires_at);
     await loadScreenshots(room.id);
     subscribeToRoom(room.id);
+  }
+
+  function startExpiryCountdown(expiresAtStr) {
+    const expiresAt = new Date(expiresAtStr);
+    if (expiryInterval) clearInterval(expiryInterval);
+
+    function tick() {
+      const remainingMs = expiresAt - new Date();
+      if (remainingMs <= 0) {
+        clearInterval(expiryInterval);
+        localStorage.removeItem(STORAGE_KEY);
+        alert('This room has expired.');
+        location.reload();
+        return;
+      }
+      const mins = Math.floor(remainingMs / 60000);
+      const secs = Math.floor((remainingMs % 60000) / 1000);
+      timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')} left`;
+      timerEl.classList.toggle('low', remainingMs < 5 * 60 * 1000);
+    }
+    tick();
+    expiryInterval = setInterval(tick, 1000);
   }
 
   async function loadScreenshots(roomId) {
@@ -300,21 +262,16 @@
       .order('created_at', { ascending: false })
       .limit(20);
 
-    if (error) {
-      console.error(error);
-      return;
-    }
+    if (error) { console.error(error); return; }
     renderAll(data);
   }
 
   function subscribeToRoom(roomId) {
     supabaseClient
       .channel('screenshots-' + roomId)
-      .on(
-        'postgres_changes',
+      .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'screenshots', filter: `room_id=eq.${roomId}` },
-        (payload) => prependCard(payload.new)
-      )
+        (payload) => prependCard(payload.new))
       .subscribe();
   }
 
@@ -332,6 +289,7 @@
   function buildCard(row) {
     const card = document.createElement('div');
     card.className = 'card';
+    card.dataset.id = row.id;
 
     const img = document.createElement('img');
     img.src = row.image_url;
@@ -343,8 +301,7 @@
 
     const meta = document.createElement('div');
     meta.className = 'meta';
-    const time = new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    meta.innerHTML = `<span>${row.uploader_name ? escapeHtml(row.uploader_name) : time}</span><span>${row.uploader_name ? time : ''}</span>`;
+    meta.textContent = new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     const actions = document.createElement('div');
     actions.className = 'actions';
@@ -357,19 +314,36 @@
     downloadBtn.textContent = 'Download';
     downloadBtn.addEventListener('click', () => downloadImage(row.image_url));
 
-    actions.append(copyBtn, downloadBtn);
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.className = 'danger';
+    deleteBtn.addEventListener('click', () => deleteScreenshot(row, card));
+
+    actions.append(copyBtn, downloadBtn, deleteBtn);
     body.append(meta, actions);
     card.append(img, body);
     return card;
+  }
+
+  async function deleteScreenshot(row, cardEl) {
+    if (!confirm('Delete this screenshot?')) return;
+
+    await supabaseClient.storage.from('screenshots').remove([row.storage_path]);
+    const { error } = await supabaseClient.from('screenshots').delete().eq('id', row.id);
+
+    if (error) {
+      alert('Could not delete — try again.');
+      return;
+    }
+    cardEl.remove();
+    if (!grid.children.length) emptyState.style.display = 'block';
   }
 
   async function copyImage(url, btn) {
     try {
       const res = await fetch(url);
       const blob = await res.blob();
-      await navigator.clipboard.write([
-        new ClipboardItem({ [blob.type]: blob }),
-      ]);
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
       const original = btn.textContent;
       btn.textContent = 'Copied';
       btn.classList.add('copied');
@@ -386,12 +360,6 @@
     a.download = '';
     a.target = '_blank';
     a.click();
-  }
-
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
   }
 
   init();

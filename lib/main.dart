@@ -5,8 +5,8 @@ import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
 
 // TODO: replace with your actual Supabase project values (Step 1).
-const supabaseUrl = 'https://mjrhxthswsncdvnujuxb.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qcmh4dGhzd3NuY2R2bnVqdXhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1MTE5NzcsImV4cCI6MjEwNTA4Nzk3N30.LN-OEhv-sO-20_dbNCI9wpVwusWJufNzmaIvcueMy_4';
+const supabaseUrl = 'https://YOUR_PROJECT.supabase.co';
+const supabaseAnonKey = 'YOUR_ANON_KEY';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +35,7 @@ class _StartupRouter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<bool>(
-      future: LocalStorageService().hasRoomConfig(),
+      future: LocalStorageService().hasActiveRoom(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
