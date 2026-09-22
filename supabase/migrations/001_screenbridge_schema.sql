@@ -55,6 +55,12 @@ create policy "screenshots_select_all" on public.screenshots
   for select using (true);
 create policy "screenshots_insert_all" on public.screenshots
   for insert with check (true);
+-- index.html's Delete button calls both of these -- without this
+-- policy the row delete is silently refused (no error thrown, the
+-- row just never disappears) since RLS defaults to denying whatever
+-- has no matching policy.
+create policy "screenshots_delete_all" on public.screenshots
+  for delete using (true);
 
 -- Storage bucket for the actual image bytes. Public so
 -- getPublicUrl() on the mobile upload and any <img src> on desktop
@@ -68,8 +74,22 @@ create policy "screenshots_bucket_insert" on storage.objects
 
 create policy "screenshots_bucket_select" on storage.objects
   for select using (bucket_id = 'screenshots');
+-- Same reasoning as screenshots_delete_all above: index.html's
+-- deleteScreenshot() calls storage.remove() on the file itself
+-- before deleting the row, and that call needs its own policy --
+-- a table-level delete policy doesn't cover storage.objects.
+create policy "screenshots_bucket_delete" on storage.objects
+  for delete using (bucket_id = 'screenshots');
 
--- NOTE: no delete policy / cleanup job yet. screenbridge-concept.md's
--- rolling-buffer / 24-48h retention idea isn't implemented here --
--- ask if you want a scheduled Edge Function or a client-side
--- "delete anything older than N hours on load" added next.
+-- NOTE: no cleanup job yet. screenbridge-concept.md's rolling-buffer /
+-- 24-48h retention idea isn't implemented here -- ask if you want a
+-- scheduled Edge Function or a client-side "delete anything older
+-- than N hours on load" added next.
+
+-- Realtime is a separate switch from RLS: a table isn't broadcast to
+-- subscribers just because select is allowed. index.html's
+-- subscribeToRoom() listens for INSERT events on screenshots, and
+-- without this, nothing arrives live -- screenshots would only show
+-- up after a manual page reload (loadScreenshots' one-time select
+-- still works fine either way).
+alter publication supabase_realtime add table public.screenshots;

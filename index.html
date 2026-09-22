@@ -35,6 +35,10 @@
 
   #leave-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); font-size: 13px; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
   #leave-btn:hover { color: var(--text); border-color: var(--text-dim); }
+  #upload-btn { background: var(--accent-dim); border: none; color: var(--accent); font-size: 13px; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+  #upload-btn:hover { filter: brightness(1.15); }
+  #upload-btn:disabled { opacity: 0.6; cursor: default; }
+  .header-actions { display: flex; align-items: center; gap: 10px; }
 
   main { padding: 32px; max-width: 1100px; margin: 0 auto; }
   .empty { text-align: center; color: var(--text-dim); padding: 100px 20px; font-size: 15px; line-height: 1.6; }
@@ -109,7 +113,11 @@
       <span class="room-tag" id="room-tag"></span>
       <span class="timer" id="timer"></span>
     </div>
-    <button id="leave-btn">Leave Room</button>
+    <div class="header-actions">
+      <input type="file" id="file-input" accept="image/*" style="display:none;" />
+      <button id="upload-btn">⬆ Upload</button>
+      <button id="leave-btn">Leave Room</button>
+    </div>
   </header>
   <main>
     <div id="empty" class="empty" style="display:none;">
@@ -139,6 +147,12 @@
 
   const STORAGE_KEY = 'screenbridge_room';
   let expiryInterval = null;
+  // Set once in enterRoom() -- uploadFromDesktop() needs the room id,
+  // same as the mobile app's uploadScreenshot() does.
+  let currentRoom = null;
+
+  const uploadBtn = document.getElementById('upload-btn');
+  const fileInput = document.getElementById('file-input');
 
   document.getElementById('create-btn').addEventListener('click', createRoom);
   document.getElementById('show-join-btn').addEventListener('click', () => {
@@ -151,6 +165,51 @@
     localStorage.removeItem(STORAGE_KEY);
     location.reload();
   });
+  uploadBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (file) uploadFromDesktop(file);
+    // Reset so picking the same file twice in a row still fires 'change'.
+    fileInput.value = '';
+  });
+
+  async function uploadFromDesktop(file) {
+    if (!currentRoom) return;
+    uploadBtn.disabled = true;
+    const original = uploadBtn.textContent;
+    uploadBtn.textContent = 'Uploading…';
+
+    try {
+      const ext = file.name.includes('.') ? file.name.split('.').pop() : 'png';
+      // Same '<roomId>/<name>.<ext>' convention the mobile app's
+      // uploadScreenshot() uses, so both sides' files sit in the same
+      // per-room storage folder.
+      const storagePath = `${currentRoom.id}/desktop-${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabaseClient
+        .storage.from('screenshots')
+        .upload(storagePath, file, { upsert: false });
+      if (uploadError) throw uploadError;
+
+      const imageUrl = supabaseClient.storage.from('screenshots').getPublicUrl(storagePath).data.publicUrl;
+
+      const { error: insertError } = await supabaseClient
+        .from('screenshots')
+        .insert({ room_id: currentRoom.id, image_url: imageUrl, storage_path: storagePath });
+      if (insertError) throw insertError;
+
+      // No manual grid.prepend() here -- the room's own Realtime
+      // subscription (subscribeToRoom, already running) picks up this
+      // INSERT and adds the card itself, same as it would for a
+      // screenshot sent from mobile.
+    } catch (e) {
+      console.error('Desktop upload failed', e);
+      alert('Could not upload — try again.');
+    } finally {
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = original;
+    }
+  }
 
   async function init() {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -233,6 +292,7 @@
   }
 
   async function enterRoom(room) {
+    currentRoom = room;
     gate.style.display = 'none';
     app.style.display = 'block';
     roomTag.textContent = room.code;

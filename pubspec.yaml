@@ -15,6 +15,9 @@ dependencies:
   shared_preferences: ^2.2.3
   uuid: ^4.4.0
   mobile_scanner: ^5.2.3
+  # Saves a downloaded screenshot into the phone's actual photo
+  # gallery -- used by home_screen.dart's _downloadScreenshot().
+  gal: ^2.3.0
 
 dev_dependencies:
   flutter_test:

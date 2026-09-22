@@ -43,7 +43,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       setState(() => _error = 'Room not found. Check the code and try again.');
     } on RoomExpiredException {
       setState(() => _error = 'This room has expired.');
-    } catch (_) {
+    } catch (e) {
+      debugPrint('joinRoom failed: $e');
       setState(() => _error = 'Something went wrong. Try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
