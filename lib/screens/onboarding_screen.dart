@@ -120,21 +120,49 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-class _QrScannerScreen extends StatelessWidget {
+class _QrScannerScreen extends StatefulWidget {
   const _QrScannerScreen();
+
+  @override
+  State<_QrScannerScreen> createState() => _QrScannerScreenState();
+}
+
+class _QrScannerScreenState extends State<_QrScannerScreen> {
+  final _controller = MobileScannerController();
+  // onDetect can fire more than once for the same code before the
+  // screen finishes popping -- without this, a second frame decoded a
+  // few milliseconds later tries to pop the (already popping) route
+  // again with a different value.
+  bool _handled = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onDetect(BarcodeCapture capture) async {
+    if (_handled) return;
+    final value = capture.barcodes.firstOrNull?.rawValue;
+    if (value == null) return;
+    _handled = true;
+
+    // Stop the camera before popping. Disposing this screen while the
+    // camera preview is still mid-frame is what left the *next*
+    // screen rendering solid black -- the texture mobile_scanner was
+    // drawing into hadn't been released yet. Stopping first lets the
+    // native camera session close cleanly.
+    await _controller.stop();
+    if (mounted) Navigator.of(context).pop(value);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Scan room QR code')),
       body: MobileScanner(
-        onDetect: (capture) {
-          final barcode = capture.barcodes.firstOrNull;
-          final value = barcode?.rawValue;
-          if (value != null) {
-            Navigator.of(context).pop(value);
-          }
-        },
+        controller: _controller,
+        onDetect: _onDetect,
       ),
     );
   }

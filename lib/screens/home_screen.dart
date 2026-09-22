@@ -94,8 +94,28 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _pickFromGallery() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery);
+  Future<void> _showUploadOptions() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+    final picked = await _picker.pickImage(source: source);
     if (picked != null) {
       await _handleIncomingFile(File(picked.path));
     }
@@ -122,6 +142,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.upload_outlined),
+          tooltip: 'Upload screenshot',
+          onPressed: _uploading ? null : _showUploadOptions,
+        ),
         title: Text(_roomCode != null ? 'Room $_roomCode' : 'ScreenBridge'),
         actions: [
           IconButton(
@@ -145,14 +170,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(_lastStatus!, style: const TextStyle(fontSize: 18)),
               const SizedBox(height: 32),
               const Text(
-                'Share a screenshot to this app,\nor pick one below.',
+                'Share a screenshot to this app,\nor upload one below.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: _uploading ? null : _pickFromGallery,
-                icon: const Icon(Icons.image),
-                label: const Text('Pick Screenshot'),
+                onPressed: _uploading ? null : _showUploadOptions,
+                icon: const Icon(Icons.upload_outlined),
+                label: const Text('Upload Screenshot'),
               ),
             ],
           ),
