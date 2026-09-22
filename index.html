@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ScreenBridge</title>
+<title>DropRoom</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
@@ -89,7 +89,7 @@
 
 <div id="gate" class="gate" style="display:none;">
   <div class="gate-box" id="gate-choice">
-    <h1>ScreenBridge</h1>
+    <h1>DropRoom</h1>
     <p>Create a new room to start receiving screenshots, or join one already created.</p>
     <button class="primary" id="create-btn">Create New Room</button>
     <button class="secondary" id="show-join-btn">Join Existing Room</button>
@@ -115,7 +115,7 @@
 <div id="app" style="display:none;">
   <header>
     <div class="brand">
-      <h1>ScreenBridge</h1>
+      <h1>DropRoom</h1>
       <span class="room-tag" id="room-tag"></span>
       <span class="timer" id="timer"></span>
     </div>
@@ -456,16 +456,33 @@
     }
   }
 
-  function downloadImage(url, fileName) {
-    const a = document.createElement('a');
-    a.href = url;
-    // A real name (from file_name) instead of '' -- an empty
-    // download attribute still works but leaves the browser to guess
-    // a name from the storage path, which is a generated one like
-    // '1732200000000.pdf', not what the person actually uploaded.
-    a.download = fileName || '';
-    a.target = '_blank';
-    a.click();
+  async function downloadImage(url, fileName) {
+    // Cross-origin URLs (e.g. Firebase Storage) ignore the `download`
+    // attribute and just navigate/open in a new tab instead of saving.
+    // Fetching the file as a blob and downloading a same-origin blob URL
+    // forces an actual save-to-disk instead.
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Fetch failed: ' + res.status);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      // A real name (from file_name) instead of '' -- an empty
+      // download attribute still works but leaves the browser to guess
+      // a name from the storage path, which is a generated one like
+      // '1732200000000.pdf', not what the person actually uploaded.
+      a.download = fileName || '';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.error('Download failed', e);
+      // Fallback: at least let the user get to the file if fetch/blob fails
+      // (e.g. CORS not enabled on the storage bucket).
+      window.open(url, '_blank');
+    }
   }
 
   init();
